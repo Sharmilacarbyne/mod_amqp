@@ -277,6 +277,7 @@ switch_status_t mod_amqp_producer_create(char *name, switch_xml_t cfg)
 				profile->event_subscriptions = switch_separate_string(tmp, ',', argv, (sizeof(argv) / sizeof(argv[0])));
 
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "Found %d subscriptions\n", profile->event_subscriptions);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "printing the vale of tmp %s\n", tmp);
 
 				for (arg = 0; arg < profile->event_subscriptions; arg++) {
 					if (switch_name_event(argv[arg], &(profile->event_ids[arg])) != SWITCH_STATUS_SUCCESS
@@ -290,7 +291,7 @@ switch_status_t mod_amqp_producer_create(char *name, switch_xml_t cfg)
 
 	/* Handle defaults of string types */
 	profile->exchange = exchange ? exchange : switch_core_strdup(profile->pool, "TAP.Events");
-	profile->exchange_type = exchange_type ? exchange_type : switch_core_strdup(profile->pool, "topic");
+	profile->exchange_type = exchange_type ? exchange_type : switch_core_strdup(profile->pool, "x-consistent-hash");
 	profile->exchange_durable = exchange_durable;
 	profile->delivery_mode = delivery_mode;
 	profile->delivery_timestamp = delivery_timestamp;
@@ -399,6 +400,7 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 	amqp_basic_properties_t props;
 	int status;
 	uint64_t timestamp;
+	amqp_frame_t decoded_frame;
 
 	if (!profile->conn_active) {
 		/* No connection, so we can not send the message. */
@@ -434,11 +436,12 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 								1,
 								amqp_cstring_bytes(profile->exchange),
 								amqp_cstring_bytes(msg->routing_key),
-								0,
+								1,
 								0,
 								&props,
 								amqp_cstring_bytes(msg->pjson));
 
+	status = amqp_simple_wait_frame(profile->conn_active->state, &decoded_frame);
 	if (status < 0) {
 		const char *errstr = amqp_error_string2(-status);
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_CRIT, "Profile[%s] failed to send event on connection[%s]: %s\n",
@@ -503,7 +506,7 @@ void * SWITCH_THREAD_FUNC mod_amqp_producer_thread(switch_thread_t *thread, void
         if (!msg && switch_queue_pop_timeout(profile->send_queue, (void**)&msg, 1000000) != SWITCH_STATUS_SUCCESS) {
             continue;
         }
-
+        amqp_confirm_select(profile->conn_active->state, 1);
         if (msg) {
 #ifdef MOD_AMQP_DEBUG_TIMING
             long times[TIME_STATS_TO_AGGREGATE];

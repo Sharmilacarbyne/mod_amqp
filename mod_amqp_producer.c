@@ -183,6 +183,7 @@ switch_status_t mod_amqp_producer_create(char *name, switch_xml_t cfg)
 	switch_memory_pool_t *pool;
 	char *format_fields[MAX_ROUTING_KEY_FORMAT_FIELDS+1];
 	int format_fields_size = 0;
+	int enable_amqp = 0;
 
 	memset(format_fields, 0, (MAX_ROUTING_KEY_FORMAT_FIELDS + 1) * sizeof(char *));
 
@@ -257,6 +258,9 @@ switch_status_t mod_amqp_producer_create(char *name, switch_xml_t cfg)
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Found exchange parameter. please change to exchange-name\n");
 			} else if (!strncmp(var, "content-type", 12)) {
 				content_type = switch_core_strdup(profile->pool, val);
+			} else if (!strncmp(var, "enable-amqp", 11)) {
+				enable_amqp = switch_true(val);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "enable amqp events: %d\n", enable_amqp);
 			} else if (!strncmp(var, "format_fields", 13)) {
 				char *tmp = switch_core_strdup(profile->pool, val);
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "amqp format fields : %s\n", tmp);
@@ -291,11 +295,12 @@ switch_status_t mod_amqp_producer_create(char *name, switch_xml_t cfg)
 
 	/* Handle defaults of string types */
 	profile->exchange = exchange ? exchange : switch_core_strdup(profile->pool, "TAP.Events");
-	profile->exchange_type = exchange_type ? exchange_type : switch_core_strdup(profile->pool, "x-consistent-hash");
+	profile->exchange_type = exchange_type ? exchange_type : switch_core_strdup(profile->pool, "topic");
 	profile->exchange_durable = exchange_durable;
 	profile->delivery_mode = delivery_mode;
 	profile->delivery_timestamp = delivery_timestamp;
 	profile->content_type = content_type ? content_type : switch_core_strdup(profile->pool, MOD_AMQP_DEFAULT_CONTENT_TYPE);
+	profile->enable_amqp = enable_amqp;
 
 
 	for(i = 0; i < format_fields_size; i++) {
@@ -430,7 +435,8 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 		messageTableEntries[1].value.kind = AMQP_FIELD_KIND_U64;
 		messageTableEntries[1].value.value.u64 = timestamp;
 	}
-
+	
+	if(profile->enable_amqp == 1) {
 	status = amqp_basic_publish(
 								profile->conn_active->state,
 								1,
@@ -451,6 +457,7 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 		mod_amqp_connection_close(profile->conn_active);
 		profile->conn_active = NULL;
 		return SWITCH_STATUS_SOCKERR;
+	}
 	}
 
 	return SWITCH_STATUS_SUCCESS;

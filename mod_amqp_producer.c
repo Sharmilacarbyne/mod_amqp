@@ -436,40 +436,30 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 	}
         
 	if(profile->enable_sync_publish == 1) {
-	status = amqp_basic_publish(
+		status = amqp_basic_publish(
 								profile->conn_active->state,
 								1,
-								amqp_cstring_bytes(profile->exchange),
+				                                amqp_cstring_bytes(profile->exchange),
 								amqp_cstring_bytes(msg->routing_key),
 								1,
-								0,
-								&props,
-								amqp_cstring_bytes(msg->pjson));
+				                                0,
+				                                &props,
+				                                amqp_cstring_bytes(msg->pjson));
 
-	status = amqp_simple_wait_frame(profile->conn_active->state, &decoded_frame);
-	if (status < 0) {
-		const char *errstr = amqp_error_string2(-status);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_CRIT, "Profile[%s] failed to send event on connection[%s]: %s\n",
-						  profile->name, profile->conn_active->name, errstr);
+		status = amqp_simple_wait_frame(profile->conn_active->state, &decoded_frame);
 
-		/* This is bad, we couldn't send the message. Clear up any connection */
-		mod_amqp_connection_close(profile->conn_active);
-		profile->conn_active = NULL;
-		return SWITCH_STATUS_SOCKERR;
-	}
-	}
-
-	else {
+	} else {
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "else condition for publish working\n");
-	status = amqp_basic_publish(
-								profile->conn_active->state,
-								1,
-								amqp_cstring_bytes(profile->exchange),
-								amqp_cstring_bytes(msg->routing_key),
-								0,
-								0,
-								&props,
-								amqp_cstring_bytes(msg->pjson));
+		status = amqp_basic_publish(
+				                                profile->conn_active->state,
+				                                1,
+				                                amqp_cstring_bytes(profile->exchange),
+				                                amqp_cstring_bytes(msg->routing_key),
+				                                0,
+				                                0,
+				                                &props,
+				                                amqp_cstring_bytes(msg->pjson));
+	}
 
 	if (status < 0) {
 		const char *errstr = amqp_error_string2(-status);
@@ -481,7 +471,7 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
 		profile->conn_active = NULL;
 		return SWITCH_STATUS_SOCKERR;
 	}
-	}
+
 	return SWITCH_STATUS_SUCCESS;
 }
 

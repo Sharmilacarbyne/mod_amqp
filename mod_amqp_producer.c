@@ -437,28 +437,27 @@ switch_status_t mod_amqp_producer_send(mod_amqp_producer_profile_t *profile, mod
         
 	if(profile->enable_sync_publish == 1) {
 		status = amqp_basic_publish(
-								profile->conn_active->state,
-								1,
-								amqp_cstring_bytes(profile->exchange),
-								amqp_cstring_bytes(msg->routing_key),
-								1,
-								0,
-								&props,
-								amqp_cstring_bytes(msg->pjson));
+														profile->conn_active->state,
+														1,
+														amqp_cstring_bytes(profile->exchange),
+														amqp_cstring_bytes(msg->routing_key),
+														1,
+														0,
+														&props,
+														amqp_cstring_bytes(msg->pjson));
 
 		status = amqp_simple_wait_frame(profile->conn_active->state, &decoded_frame);
 
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "else condition for publish working\n");
 		status = amqp_basic_publish(
-				                                profile->conn_active->state,
-				                                1,
-				                                amqp_cstring_bytes(profile->exchange),
-				                                amqp_cstring_bytes(msg->routing_key),
-				                                0,
-				                                0,
-				                                &props,
-				                                amqp_cstring_bytes(msg->pjson));
+														profile->conn_active->state,
+														1,
+														amqp_cstring_bytes(profile->exchange),
+														amqp_cstring_bytes(msg->routing_key),
+														0,
+														0,
+														&props,
+														amqp_cstring_bytes(msg->pjson));
 	}
 
 	if (status < 0) {
